@@ -29,7 +29,6 @@ defmodule Importex do
     end
   end
 
-
   defmacro __before_compile__(_env) do
     quote do
       import Importex.Base
@@ -54,23 +53,30 @@ defmodule Importex do
           iex> Importex.import("users.csv")
 
       """
-      def import(file, headers \\ {}) do
-        case headers do
-          {} -> import_csv(file, @columns, true)
-          _  -> import_csv(file, headers)
-        end
+      def import(file, opts \\ %{}) do
+        #file = "#{System.cwd!()}/test/data/users.csv"
+        import_csv(file, opts)
       end
 
 
-      defp import_csv(file, headers, reverse \\ false) do
-        headers = if reverse do
-          Enum.reverse(headers)
-        else
-          headers
-        end
-        parse_csv(file, headers)
+      defp import_csv(file, opts) do
+        opts = get_or_set_default(opts)
+        parse_csv(file, opts)
       end
 
+      defp get_or_set_default(opts) do
+        opts
+        |> put_separator
+        |> Map.put_new(:headers, Enum.reverse(@columns))
+      end
+
+      defp put_separator(opts) do
+        separator = cond do
+          opts[:separator] != nil -> opts[:separator]
+          true -> ?;
+        end
+        opts |> Map.put_new(:separator, separator)
+      end
     end
   end
 

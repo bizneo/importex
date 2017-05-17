@@ -8,7 +8,7 @@ defmodule ImportexTest do
       %{
         data1: SampleUser1.import(filename),
         data2: SampleUser2.import(filename),
-        data3: SampleUser3.import(filename, [{:id, :integer}] )
+        data3: SampleUser3.import(filename, %{headers: [id: :integer]} )
       }
     }
   end
