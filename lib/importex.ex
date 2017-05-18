@@ -23,9 +23,9 @@ defmodule Importex do
   This macro should be inside of a import_fields, and generate a new column to
   add to headers
   """
-  defmacro column(name, type) do
+  defmacro column(name, type \\ :string, opts \\ []) do
     quote do
-      @columns {unquote(name), unquote(type)}
+      @columns {unquote(name), unquote(type), unquote(opts)}
     end
   end
 
@@ -54,7 +54,6 @@ defmodule Importex do
 
       """
       def import(file, opts \\ %{}) do
-        #file = "#{System.cwd!()}/test/data/users.csv"
         import_csv(file, opts)
       end
 
@@ -67,7 +66,7 @@ defmodule Importex do
       defp get_or_set_default(opts) do
         opts
         |> put_separator
-        |> Map.put_new(:headers, Enum.reverse(@columns))
+        |> put_headers
       end
 
       defp put_separator(opts) do
@@ -77,7 +76,25 @@ defmodule Importex do
         end
         opts |> Map.put_new(:separator, separator)
       end
+
+      defp put_headers(opts) do
+        case opts[:headers] do
+          nil -> opts |> Map.put_new(:headers, Enum.reverse(@columns))
+          _ ->
+            headers = opts[:headers]
+            |> Enum.map(fn(column) ->
+              if tuple_size(column) == 2 do
+                Tuple.append(column, [])
+              else
+                column
+              end
+            end)
+            opts |> Map.update(:headers, Enum.reverse(@columns), fn(_) -> headers end)
+        end
+      end
+
     end
+
   end
 
 end

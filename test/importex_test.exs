@@ -18,7 +18,7 @@ defmodule ImportexTest do
     user1 = data |> List.first
 
     assert length(data) == 2
-    assert user1.id == "1"
+    assert user1.id == 1
     assert user1.username == "john"
     assert user1.email == "john@email.com"
   end
@@ -27,7 +27,7 @@ defmodule ImportexTest do
     user2 = data |> List.last
 
     assert length(data) == 2
-    assert user2.id == "2"
+    assert user2.id == 2
     assert user2.username == "ana"
     assert user2.email == "ana@email.com"
     assert user2.city == "madrid"
@@ -42,7 +42,7 @@ defmodule ImportexTest do
     #There is only one key
     assert length(data) == 2
     assert total_keys == 1
-    assert user3.id == "1"
+    assert user3.id == 1
   end
 
 

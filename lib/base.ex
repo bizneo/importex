@@ -6,24 +6,18 @@ defmodule Importex.Base do
     |> File.stream!
     |> CSV.decode(separator: separator)
     |> Enum.map(fn row ->
-      Enum.reduce(headers, %{pos: 0}, fn({key, type}, accum) ->
+      Enum.reduce(headers, %{pos: 0}, fn({key, type, opts}, accum) ->
         value = Enum.at(row, accum.pos)
-        if(is_valid(type, value)) do
-          accum |> Map.put(key, Enum.at(row, accum.pos))
-        else
-          accum |> attach_error(key, type, value)
+        case try_cast(type, value, opts) do
+          {:error, error} ->
+            accum |> Map.update(:errors, [{key, error}], &(&1 ++ [{key, error}] ))
+          {:ok, cast_value} ->
+            accum |> Map.put(key, cast_value)
         end
         |> Map.put(:pos, accum.pos + 1)
       end)
       |> Map.delete(:pos)
     end)
-  end
-
-
-  defp attach_error(row, key, type, value) do
-    init = {key, "#{value} is not #{type}"}
-    row
-    |> Map.update(:errors, [init], &(&1 ++ [init] ))
   end
 
 end
