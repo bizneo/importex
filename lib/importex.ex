@@ -50,25 +50,36 @@ defmodule Importex do
 
       ## Examples
 
-          iex> Importex.import("users.csv")
+          iex> Importex.import_csv("users.csv")
 
       """
-      def import(file, opts \\ %{}) do
-        import_csv(file, opts)
-      end
-
-
-      defp import_csv(file, opts) do
+      def import_csv(file, opts \\ %{}) do
         opts = get_or_set_default(opts)
         parse_csv(file, opts)
       end
 
+      @doc """
+      Start the import process from csv file.
+
+      ## Examples
+
+          iex> Importex.import_csv_safe("users.csv")
+
+      """
+      def import_csv_safe(file, opts \\ %{}) do
+        opts = get_or_set_default(opts)
+        parse_csv_safe(file, opts)
+      end
+
+      # Get separator and headers from opts params or set default values
       defp get_or_set_default(opts) do
         opts
         |> put_separator
         |> put_headers
       end
 
+      # The separator by default is ";", but it's able change it using syntax
+      # ?separator (where separator is the character)
       defp put_separator(opts) do
         separator = cond do
           opts[:separator] != nil -> opts[:separator]
@@ -77,6 +88,9 @@ defmodule Importex do
         opts |> Map.put_new(:separator, separator)
       end
 
+      # Headers are taking from import_fields macro, one by each column and in
+      # the same order, but if we we set opts[:headers] like [{:field1, type1}, ..]
+      # this will be taken.
       defp put_headers(opts) do
         case opts[:headers] do
           nil -> opts |> Map.put_new(:headers, Enum.reverse(@columns))
