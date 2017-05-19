@@ -31,6 +31,9 @@ defmodule Importex.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [{:csv, "~> 1.4.2"}]
+    [
+      {:csv, "~> 1.4.2"},
+      {:benchee, "~> 0.8", only: :dev}
+    ]
   end
 end
