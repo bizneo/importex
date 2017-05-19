@@ -152,7 +152,7 @@ defmodule Importex.Base do
     current_header
     |> Enum.map(fn(header_name)->
       columns
-      |> Enum.find(fn({k,_,_}) -> "#{k}" == header_name end)
+      |> Enum.find(fn({field,_,_}) -> "#{field}" == header_name end)
       |> case do
         nil -> header_name
         {_,_,opts} ->

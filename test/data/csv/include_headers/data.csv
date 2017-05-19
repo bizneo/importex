@@ -1,0 +1,4 @@
+email;first_name;second_name;birth;role;gender;username;company_id;contract;salary;headquarters
+"akseli.murto@example.com";"Akseli";"Murto";"1951-01-01";"user";"male";"ticklishkoala906";"1";"temporal";"40000";"Bizneo@Barcelona"
+"arabic@example.com";"آرش";"علیزاده";"1957-01-01";"manager";"male";"lazyladybug349";"1";"temporal";"30000";"Bizneo@Barcelona"
+"joan.betten@example.com";"Joan";"Betten";"1950-01-01";"user";"male";"beautifulrabbit988";"1";"temporal";"50000";"Bizneo@Madrid"
