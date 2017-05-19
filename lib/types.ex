@@ -5,6 +5,8 @@ defmodule Importex.Types do
   def try_cast(:map, value, opts), do: cast_map(value, opts)
   def try_cast(:list, value, opts), do: cast_list(value, opts)
   def try_cast(:string, value, _), do: {:ok, value}
+  def try_cast(_, value, _), do: {:ok, value}
+
 
   defp cast_integer(value) when value in [nil, ""], do: error(:integer, value)
   defp cast_integer(value) do

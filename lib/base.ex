@@ -47,7 +47,9 @@ defmodule Importex.Base do
     |> read_rows(opts)
     |> Enum.map(fn row ->
       if cast_rows == true do
-        row |> cast_row(opts)
+        headers = file
+        |> get_headers(opts)
+        row |> cast_row(headers)
       else
         row
       end
@@ -58,22 +60,25 @@ defmodule Importex.Base do
   # this one base on opts[:headers] or from import_fields macro.
   defp read_rows(file, opts) do
     data_rows   = File.stream!(file)
-    headers_row = Enum.reduce(opts[:headers],"", fn({k,_,_}, accum) ->
-      if accum == "" do
-        "#{k}"
-      else
-        "#{accum};#{k}"
-      end
-    end)
-
-    [headers_row]
-    |> Stream.concat(data_rows)
+    if(opts[:include_headers]) do
+      data_rows
+    else
+      headers_row = Enum.reduce(opts[:headers],"", fn({k,_,_}, accum) ->
+        if accum == "" do
+          "#{k}"
+        else
+          "#{accum}#{<<opts[:separator]>>}#{k}"
+        end
+      end)
+      [headers_row]
+      |> Stream.concat(data_rows)
+    end
     |> CSV.decode(separator: opts[:separator] , headers: true)
   end
 
   # Cast files and report errors if any.
-  defp cast_row(row, opts) do
-    Enum.reduce(opts[:headers], %{}, fn({key, type, o}, accum) ->
+  defp cast_row(row, headers) do
+    Enum.reduce(headers, %{}, fn({key, type, o}, accum) ->
       value = row["#{key}"]
       case try_cast(type, value, o) do
         {:error, error} ->
@@ -82,6 +87,42 @@ defmodule Importex.Base do
           accum |> Map.put(key, cast_value)
       end
     end)
+  end
+
+  defp get_headers(file,opts) do
+    if(opts[:include_headers]) do
+      headers_file = file
+      |> get_headers_from_file(opts)
+      # Now we have to find these fields types
+      headers_with_type = headers_file
+      |> get_headers_types(opts)
+
+      if Enum.any?(headers_with_type) do
+        headers_with_type
+      else
+        opts[:headers]
+      end
+    else
+      opts[:headers]
+    end
+  end
+
+  # Read the header from the file (first line)
+  defp get_headers_from_file(file, opts) do
+    {:ok, headers_file } = file
+    |> File.stream!
+    |> CSV.decode(separator: opts[:separator])
+    |> Enum.fetch(0)
+    headers_file
+  end
+
+  # Get the types of headers found in file
+  defp get_headers_types(headers_file, opts) do
+    headers_file
+    |> Enum.reduce([], fn(hf, accum) ->
+      accum ++ [opts[:headers] |> Enum.find(fn({h,_,_}) -> "#{h}" == hf end)]
+    end)
+    |> Enum.filter(&(&1 != nil))
   end
 
 end
