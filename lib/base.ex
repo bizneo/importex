@@ -42,14 +42,14 @@ defmodule Importex.Base do
   def parse_csv_safe(file, opts \\ %{}), do: internal_parse_csv(file, opts, true)
 
 
-  defp internal_parse_csv(file, opts, cast_rows \\ false) do
+  def internal_parse_csv(file, opts, cast_rows \\ false) do
+    columns = file |> get_columns(opts)
+
     file
     |> read_rows(opts)
     |> Enum.map(fn row ->
       if cast_rows == true do
-        headers = file
-        |> get_headers(opts)
-        row |> cast_row(headers)
+        row |> cast_row(columns)
       else
         row
       end
@@ -57,19 +57,27 @@ defmodule Importex.Base do
   end
 
   # The first file line must not content the header, because we generate This
-  # this one base on opts[:headers] or from import_fields macro.
-  defp read_rows(file, opts) do
-    data_rows   = File.stream!(file)
-    if(opts[:include_headers]) do
-      data_rows
+  # this one base on opts[:columns] or from import_fields macro.
+  def read_rows(file, opts) do
+    if(opts[:file_include_headers]) do
+      headers = file
+      |> get_headers_from_file(opts)
+      |> replace_headers_by_as(opts)
+      |> headers_to_string(opts)
+
+      file
+      |> remove_headers
+      |> attach_headers(headers)
     else
-      headers_row = Enum.reduce(opts[:headers],"", fn({k,_,_}, accum) ->
+      headers_row = Enum.reduce(opts[:columns],"", fn({field,_,_}, accum) ->
         if accum == "" do
-          "#{k}"
+          "#{field}"
         else
-          "#{accum}#{<<opts[:separator]>>}#{k}"
+          "#{accum}#{<<opts[:separator]>>}#{field}"
         end
       end)
+      data_rows = file |> File.stream!
+
       [headers_row]
       |> Stream.concat(data_rows)
     end
@@ -77,22 +85,23 @@ defmodule Importex.Base do
   end
 
   # Cast files and report errors if any.
-  defp cast_row(row, headers) do
-    Enum.reduce(headers, %{}, fn({key, type, o}, accum) ->
-      value = row["#{key}"]
-      case try_cast(type, value, o) do
+  def cast_row(row, columns) do
+    Enum.reduce(columns, %{}, fn({field, type, opts}, accum) ->
+      value = row["#{field}"]
+      case try_cast(type, value, opts) do
         {:error, error} ->
-          accum |> Map.update(:errors, [{key, error}], &(&1 ++ [{key, error}] ))
+          accum |> Map.update(:errors, [{field, error}], &(&1 ++ [{field, error}] ))
         {:ok, cast_value} ->
-          accum |> Map.put(key, cast_value)
+          accum |> Map.put(field, cast_value)
       end
     end)
   end
 
-  defp get_headers(file,opts) do
-    if(opts[:include_headers]) do
+  def get_columns(file,opts) do
+    if(opts[:file_include_headers]) do
       headers_file = file
       |> get_headers_from_file(opts)
+
       # Now we have to find these fields types
       headers_with_type = headers_file
       |> get_headers_types(opts)
@@ -100,15 +109,15 @@ defmodule Importex.Base do
       if Enum.any?(headers_with_type) do
         headers_with_type
       else
-        opts[:headers]
+        opts[:columns]
       end
     else
-      opts[:headers]
+      opts[:columns]
     end
   end
 
   # Read the header from the file (first line)
-  defp get_headers_from_file(file, opts) do
+  def get_headers_from_file(file, opts) do
     {:ok, headers_file } = file
     |> File.stream!
     |> CSV.decode(separator: opts[:separator])
@@ -117,12 +126,53 @@ defmodule Importex.Base do
   end
 
   # Get the types of headers found in file
-  defp get_headers_types(headers_file, opts) do
+  def get_headers_types(headers_file, opts) do
+    opts[:columns]
     headers_file
     |> Enum.reduce([], fn(hf, accum) ->
-      accum ++ [opts[:headers] |> Enum.find(fn({h,_,_}) -> "#{h}" == hf end)]
+      accum ++ [opts[:columns] |> Enum.find(fn({h,_,_}) ->
+         "#{h}" == hf
+       end)]
     end)
     |> Enum.filter(&(&1 != nil))
+  end
+
+  def remove_headers(file) do
+    file
+    |> File.stream!
+    |> Stream.drop(1)
+  end
+
+  def attach_headers(stream, headers) do
+    [headers]
+    |> Stream.concat(stream)
+  end
+
+  def replace_headers_by_as(current_header, %{columns: columns}) do
+    current_header
+    |> Enum.map(fn(header_name)->
+      columns
+      |> Enum.find(fn({k,_,_}) -> "#{k}" == header_name end)
+      |> case do
+        nil -> header_name
+        {_,_,opts} ->
+          if opts[:as] do
+            opts[:as]
+          else
+            header_name
+          end
+      end
+    end)
+  end
+
+  defp headers_to_string(headers, opts) do
+    Enum.reduce(headers,"", fn(col_name, accum) ->
+      if accum == "" do
+        "#{col_name}"
+      else
+        "#{accum}#{<<opts[:separator]>>}#{col_name}"
+      end
+    end)
   end
 
 end

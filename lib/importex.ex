@@ -21,7 +21,7 @@ defmodule Importex do
 
   @doc """
   This macro should be inside of a import_fields, and generate a new column to
-  add to headers
+  add to columns
   """
   defmacro column(name, type \\ :string, opts \\ []) do
     quote do
@@ -71,11 +71,11 @@ defmodule Importex do
         parse_csv_safe(file, opts)
       end
 
-      # Get separator and headers from opts params or set default values
+      # Get separator and columns from opts params or set default values
       defp get_or_set_default(opts) do
         opts
         |> put_separator
-        |> put_headers
+        |> put_columns
       end
 
       # The separator by default is ";", but it's able change it using syntax
@@ -89,13 +89,13 @@ defmodule Importex do
       end
 
       # Headers are taking from import_fields macro, one by each column and in
-      # the same order, but if we we set opts[:headers] like [{:field1, type1}, ..]
+      # the same order, but if we we set opts[:columns] like [{:field1, type1}, ..]
       # this will be taken.
-      defp put_headers(opts) do
-        case opts[:headers] do
-          nil -> opts |> Map.put_new(:headers, Enum.reverse(@columns))
+      defp put_columns(opts) do
+        case opts[:columns] do
+          nil -> opts |> Map.put_new(:columns, Enum.reverse(@columns))
           _ ->
-            headers = opts[:headers]
+            columns = opts[:columns]
             |> Enum.map(fn(column) ->
               if tuple_size(column) == 2 do
                 Tuple.append(column, [])
@@ -103,7 +103,7 @@ defmodule Importex do
                 column
               end
             end)
-            opts |> Map.update(:headers, Enum.reverse(@columns), fn(_) -> headers end)
+            opts |> Map.update(:columns, Enum.reverse(@columns), fn(_) -> columns end)
         end
       end
 
