@@ -1,7 +1,41 @@
 defmodule Importex do
-  @moduledoc """
-  Documentation for Importex.
+
+  @moduledoc ~S"""
+  Importex is a wrapper to import files (by now csv) based on the data fields
+  especified in the module attached This also provide check types and casting.
+
+  ## Types
+  These are the options to check and cast fields:
+
+    * `:string` – It's the default type.
+    * `:email`  – Check that the email is correct, return error otherwise.
+    * `:map` - Must be followed by `:values` , each key represent the value to be read
+      and cast by its value. example:
+      column :role, :map, values: [{"manager", 0}, {"user", 1}], "manager" will be
+      replaced by 0, and "user" by 1. A error will be raised otherwise.
+    * `:list` - Similar to `map` but with a list of possible values, example:
+      column :gender, :list, values: ["male", "female"]
+
+  ## How to use it:
+
+  This is an example using a `User` module:
+
+  defmodule User do
+    use Importex
+    import_fields do
+      column :email, :email
+      column :first_name, :string
+      column :second_name, :string, as: :last_name
+      column :birth, :string
+      column :role, :map, values: [{"manager", 0}, {"user", 1}]
+      column :gender, :list, values: ["male", "female"]
+      column :company_id, :integer
+      column :money, :integer, as: :salary
+    end
+  end
+
   """
+
   defmacro __using__(_options) do
     quote do
       import unquote(__MODULE__)
@@ -31,13 +65,13 @@ defmodule Importex do
 
   defmacro __before_compile__(_env) do
     quote do
-      import Importex.Base
+      alias Importex.CSV
       @doc """
-      Return the import_fields columns of our model
+      Return the import_fields columns of your model
 
       ## Examples
 
-          iex> Importex.show_columns()
+          iex> User.show_columns()
           [{:id, integer}, {:username, :string}, {:email, :string}]
 
       """
@@ -46,65 +80,83 @@ defmodule Importex do
       end
 
       @doc """
-      Start the import process from csv file.
+      Start a import process from csv file.
+
+      ## Params
+
+      These are the params:
+
+        * `file`  – The file to be imported
+        * `opts` – A map of options defined below:
+
+      Options:
+        * `:file_include_headers` – The file include headers?:
+            false (default) -> Will consider that the file has not headers in the first line,
+            so the fields processed will be those in `import_fields` `columns`
+            true -> In this case the first line of the line will be taken as the fields to import,
+            Note: these fields have to be also part of `import_fields`
+        * `:separator` - Which character take as separator.
+            ?; (default)
+        * `:columns` - A list of tuples ({:field, :type}) to be parsed. Note that this will replace
+            `import_fields` columns.
+            example: columns: [{:custom_email, :email}, {:custom_money, :string}]
 
       ## Examples
 
-          iex> Importex.import_csv("users.csv")
+          iex> User.import_csv("data.csv", %{file_include_headers: true})
+          iex> Parser.parse("data.csv")
+          [%{"birth" => "1951-01-01", "company_id" => "1", "contract" => "temporal",
+          "email" => "akseli.murto@example.com", "first_name" => "Akseli",
+          "gender" => "male", "headquarters" => "Bizneo@Barcelona",
+          "last_name" => "Murto", "role" => "user", "salary" => "40000",
+          "username" => "ticklishkoala906"}]
 
       """
       def import_csv(file, opts \\ %{}) do
-        opts = get_or_set_default(opts)
-        parse_csv(file, opts)
+        CSV.Parser.parse(file, @columns, opts)
       end
 
       @doc """
-      Start the import process from csv file.
+      Start a import process from csv file but checking and casting data types.
+
+      ## Params
+
+      These are the params:
+
+        * `file`  – The file to be imported
+        * `opts` – A map of options defined below:
+
+      Options:
+        * `:file_include_headers` – The file include headers?:
+            false (default) -> Will consider that the file has not headers in the first line,
+            so the fields processed will be those in `import_fields` `columns`
+            true -> In this case the first line of the line will be taken as the fields to import,
+            Note: these fields have to be also part of `import_fields`
+        * `:separator` - Which character take as separator.
+            ?; (default)
+        * `:columns` - A list of tuples ({:field, :type}) to be parsed. Note that this will replace
+            `import_fields` columns.
+            example: columns: [{:custom_email, :email}, {:custom_money, :string}]
 
       ## Examples
 
-          iex> Importex.import_csv_safe("users.csv")
+          iex> User.import_csv_safe("data.csv", %{file_include_headers: true})
+          [%{birth: "1951-01-01", company_id: 1, contract: "temporal",
+          email: "akseli.murto@example.com", first_name: "Akseli", gender: "male",
+          headquarters: "Bizneo@Barcelona", last_name: "Murto", role: "user",
+          salary: 40000, username: "ticklishkoala906"}]
+
+          #With wrong data:
+          iex> User.import_csv_safe("data_wrong_data.csv")
+          %{birth: "1951-01-01", contract: "temporal",
+          errors: [email: "'akseli.murtoexample.com' is not a valid email",
+          company_id: "'1s' is not a valid integer"], first_name: "Akseli",
+          gender: "male", headquarters: "Bizneo@Barcelona", last_name: "Murto",
+          role: "user", salary: 40000, username: "ticklishkoala906"}
 
       """
       def import_csv_safe(file, opts \\ %{}) do
-        opts = get_or_set_default(opts)
-        parse_csv_safe(file, opts)
-      end
-
-      # Get separator and columns from opts params or set default values
-      defp get_or_set_default(opts) do
-        opts
-        |> put_separator
-        |> put_columns
-      end
-
-      # The separator by default is ";", but it's able change it using syntax
-      # ?separator (where separator is the character)
-      defp put_separator(opts) do
-        separator = cond do
-          opts[:separator] != nil -> opts[:separator]
-          true -> ?;
-        end
-        opts |> Map.put_new(:separator, separator)
-      end
-
-      # Headers are taking from import_fields macro, one by each column and in
-      # the same order, but if we we set opts[:columns] like [{:field1, type1}, ..]
-      # this will be taken.
-      defp put_columns(opts) do
-        case opts[:columns] do
-          nil -> opts |> Map.put_new(:columns, Enum.reverse(@columns))
-          _ ->
-            columns = opts[:columns]
-            |> Enum.map(fn(column) ->
-              if tuple_size(column) == 2 do
-                Tuple.append(column, [])
-              else
-                column
-              end
-            end)
-            opts |> Map.update(:columns, Enum.reverse(@columns), fn(_) -> columns end)
-        end
+        CSV.Parser.parse_safe(file, @columns, opts)
       end
 
     end

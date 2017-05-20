@@ -1,12 +1,28 @@
-defmodule Importex.Types do
+defmodule Importex.CSV.Cast do
+  @moduledoc ~S"""
+  Casting and checking fields
+  """
 
-  def try_cast(:integer, value, _opts), do: cast_integer(value)
-  def try_cast(:email, value, _opts), do: cast_email(value)
-  def try_cast(:map, value, opts), do: cast_map(value, opts)
-  def try_cast(:list, value, opts), do: cast_list(value, opts)
-  def try_cast(:string, value, _), do: {:ok, value}
-  def try_cast(_, value, _), do: {:ok, value}
+  # Cast row based on columnn types and report error if any.
+  def row(row, columns) do
+    Enum.reduce(columns, %{}, fn({field, type, opts}, accum) ->
+      value = row["#{field}"]
+      case try_cast(type, value, opts) do
+        {:error, error} ->
+          accum
+          |> Map.update(:errors, [{field, error}], &(&1 ++ [{field, error}]))
+        {:ok, cast_value} ->
+          accum |> Map.put(field, cast_value)
+      end
+    end)
+  end
 
+  defp try_cast(:integer, value, _opts), do: cast_integer(value)
+  defp try_cast(:email, value, _opts), do: cast_email(value)
+  defp try_cast(:map, value, opts), do: cast_map(value, opts)
+  defp try_cast(:list, value, opts), do: cast_list(value, opts)
+  defp try_cast(:string, value, _), do: {:ok, value}
+  defp try_cast(_, value, _), do: {:ok, value}
 
   defp cast_integer(value) when value in [nil, ""], do: error(:integer, value)
   defp cast_integer(value) do
@@ -29,7 +45,7 @@ defmodule Importex.Types do
 
   defp cast_map(value, _) when value in [nil, ""], do: error(:map, value)
   defp cast_map(value, opts) do
-    if opts[:values] |> Enum.find_value(fn({k,_}) -> k ==  value end) do
+    if opts[:values] |> Enum.find_value(fn({field, _}) -> field == value end) do
       {:ok, value}
     else
       error(:map, value)

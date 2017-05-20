@@ -33,7 +33,8 @@ defmodule Importex.Mixfile do
   defp deps do
     [
       {:csv, "~> 1.4.2"},
-      {:benchee, "~> 0.8", only: :dev}
+      {:benchee, "~> 0.8", only: :dev},
+      {:credo, "~> 0.7", only: [:dev, :test]}
     ]
   end
 end
