@@ -11,23 +11,29 @@ defmodule Importex.CSV.Cast do
         nil -> opts[:as]
         _ -> field
       end
-      value = row[field]
-      case try_cast(type, value, opts) do
-        {:error, error} ->
-          accum
-          |> Map.update(:errors, [{field, error}], &(&1 ++ [{field, error}]))
-        {:ok, cast_value} ->
-          accum |> Map.put(field, cast_value)
+      case row[field] do
+        nil -> accum
+        value -> accum |> try_cast(field, type, value, opts)
       end
     end)
   end
 
-  defp try_cast(:integer, value, _opts), do: cast_integer(value)
-  defp try_cast(:email, value, _opts), do: cast_email(value)
-  defp try_cast(:map, value, opts), do: cast_map(value, opts)
-  defp try_cast(:list, value, opts), do: cast_list(value, opts)
-  defp try_cast(:string, value, _), do: {:ok, value}
-  defp try_cast(_, value, _), do: {:ok, value}
+  defp try_cast(accum, field, type, value, opts) do
+    case cast(type, value, opts) do
+      {:error, error} ->
+        accum
+        |> Map.update(:errors, [{field, error}], &(&1 ++ [{field, error}]))
+      {:ok, cast_value} ->
+        accum |> Map.put(field, cast_value)
+    end
+  end
+
+  defp cast(:integer, value, _opts), do: cast_integer(value)
+  defp cast(:email, value, _opts), do: cast_email(value)
+  defp cast(:map, value, opts), do: cast_map(value, opts)
+  defp cast(:list, value, opts), do: cast_list(value, opts)
+  defp cast(:string, value, _), do: {:ok, value}
+  defp cast(_, value, _), do: {:ok, value}
 
   defp cast_integer(value) when value in [nil, ""], do: error(:integer, value)
   defp cast_integer(value) do

@@ -44,7 +44,7 @@ defmodule Importex.CSV.Utils do
       headers = opts[:columns]
       |> Enum.map(fn({field, _, _}) -> field end)
       |> replace_headers_by_as(opts)
-      
+
       file
       |> File.stream!
       |> CSV.decode(separator: opts[:separator] , headers: headers)
@@ -84,16 +84,6 @@ defmodule Importex.CSV.Utils do
           field_name
         end
     end
-  end
-
-  defp headers_to_string(headers, opts) do
-    Enum.reduce(headers, "" , fn(col_name, accum) ->
-      if accum == "" do
-        "#{col_name}"
-      else
-        "#{accum}#{<<opts[:separator]>>}#{col_name}"
-      end
-    end)
   end
 
   # Get the types of headers found in file

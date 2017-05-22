@@ -1,4 +1,4 @@
-defmodule ImportCsvTest do
+defmodule Test.Csv.IncludeHeaders.ImportCsvTest do
   use ExUnit.Case
   doctest Importex
 
