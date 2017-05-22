@@ -32,31 +32,23 @@ defmodule Importex.CSV.Utils do
   # The first file line must not content the header, because we generate This
   # this one base on opts[:columns] or from import_fields macro.
   def read_rows(file, opts) do
-    stream = if opts[:file_include_headers] do
+    if opts[:file_include_headers] do
       headers = file
       |> get_headers_from_file(opts)
       |> replace_headers_by_as(opts)
-      |> headers_to_string(opts)
 
       file
       |> remove_headers
-      |> attach_headers(headers)
+      |> CSV.decode(separator: opts[:separator] , headers: headers)
     else
-      headers_row = Enum.reduce(opts[:columns], "", fn({field, _, _}, accum) ->
-        if accum == "" do
-          "#{field}"
-        else
-          "#{accum}#{<<opts[:separator]>>}#{field}"
-        end
-      end)
-      data_rows = file |> File.stream!
-
-      [headers_row]
-      |> Stream.concat(data_rows)
+      headers = opts[:columns]
+      |> Enum.map(fn({field, _, _}) -> field end)
+      |> replace_headers_by_as(opts)
+      
+      file
+      |> File.stream!
+      |> CSV.decode(separator: opts[:separator] , headers: headers)
     end
-
-    stream
-    |> CSV.decode(separator: opts[:separator] , headers: true)
   end
 
   defp get_headers_from_file(file, opts) do
@@ -65,17 +57,13 @@ defmodule Importex.CSV.Utils do
     |> CSV.decode(separator: opts[:separator])
     |> Enum.fetch(0)
     headers_file
+    |> Enum.map(fn(field) -> String.to_atom(field) end)
   end
 
   defp remove_headers(file) do
     file
     |> File.stream!
     |> Stream.drop(1)
-  end
-
-  defp attach_headers(stream, headers) do
-    [headers]
-    |> Stream.concat(stream)
   end
 
   defp replace_headers_by_as(current_header, %{columns: columns}) do
@@ -86,7 +74,7 @@ defmodule Importex.CSV.Utils do
 
   defp replace_by_as(columns, field_name) do
     columns
-    |> Enum.find(fn({field, _, _}) -> "#{field}" == field_name end)
+    |> Enum.find(fn({field, _, _}) -> field == field_name end)
     |> case do
       nil -> field_name
       {_ , _, opts} ->

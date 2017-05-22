@@ -5,8 +5,13 @@ defmodule Importex.CSV.Cast do
 
   # Cast row based on columnn types and report error if any.
   def row(row, columns) do
-    Enum.reduce(columns, %{}, fn({field, type, opts}, accum) ->
-      value = row["#{field}"]
+    columns
+    |> Enum.reduce(%{}, fn({field, type, opts}, accum) ->
+      field = case row[field] do
+        nil -> opts[:as]
+        _ -> field
+      end
+      value = row[field]
       case try_cast(type, value, opts) do
         {:error, error} ->
           accum
@@ -45,10 +50,9 @@ defmodule Importex.CSV.Cast do
 
   defp cast_map(value, _) when value in [nil, ""], do: error(:map, value)
   defp cast_map(value, opts) do
-    if opts[:values] |> Enum.find_value(fn({field, _}) -> field == value end) do
-      {:ok, value}
-    else
-      error(:map, value)
+    case opts[:values] |> Enum.find(fn({field, _}) -> field == value end) do
+      {_, v} -> {:ok , v}
+      nil -> error(:map, value)
     end
   end
 

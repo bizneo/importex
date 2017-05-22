@@ -2,7 +2,7 @@ defmodule Importex do
 
   @moduledoc ~S"""
   Importex is a wrapper to import files (by now csv) based on the data fields
-  especified in the module attached This also provide check types and casting.
+  specified in the module that it's been imported.
 
   ## Types
   These are the options to check and cast fields:
@@ -104,7 +104,6 @@ defmodule Importex do
       ## Examples
 
           iex> User.import_csv("data.csv", %{file_include_headers: true})
-          iex> Parser.parse("data.csv")
           [%{"birth" => "1951-01-01", "company_id" => "1", "contract" => "temporal",
           "email" => "akseli.murto@example.com", "first_name" => "Akseli",
           "gender" => "male", "headquarters" => "Bizneo@Barcelona",
