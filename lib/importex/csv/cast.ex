@@ -11,12 +11,16 @@ defmodule Importex.CSV.Cast do
         nil -> opts[:as]
         _ -> field
       end
+
       case row[field] do
         nil -> accum
         value -> accum |> try_cast(field, type, value, opts)
       end
     end)
   end
+
+  defp try_default("", opts), do: opts[:default]
+  defp try_default(value, _), do: value
 
   defp try_cast(accum, field, type, value, opts) do
     case cast(type, value, opts) do
@@ -28,19 +32,32 @@ defmodule Importex.CSV.Cast do
     end
   end
 
-  defp cast(:integer, value, _opts), do: cast_integer(value)
+  defp cast(:integer, value, opts), do: cast_integer(value, opts)
   defp cast(:email, value, _opts), do: cast_email(value)
   defp cast(:map, value, opts), do: cast_map(value, opts)
   defp cast(:list, value, opts), do: cast_list(value, opts)
-  defp cast(:string, value, _), do: {:ok, value}
+  defp cast(:string, value, opts), do: cast_string(value, opts)
   defp cast(_, value, _), do: {:ok, value}
 
-  defp cast_integer(value) when value in [nil, ""], do: error(:integer, value)
-  defp cast_integer(value) do
-    if Regex.match?(~r/^(\d+)$/, value) do
-      {:ok, String.to_integer(value)}
-    else
-      error(:integer, value)
+  defp cast_string(value, opts) do
+    value = try_default(value, opts)
+    {:ok, value}
+  end
+
+  defp cast_integer(value, opts) do
+    case try_default(value, opts) do
+      nil -> error(:integer, value)
+      default_value ->
+        default_value = case is_integer(default_value) do
+          true -> Integer.to_string(default_value)
+          false -> default_value
+        end
+
+        if Regex.match?(~r/^(\d+)$/, default_value) do
+          {:ok, String.to_integer(default_value)}
+        else
+          error(:integer, value)
+        end
     end
   end
 
@@ -54,20 +71,21 @@ defmodule Importex.CSV.Cast do
     end
   end
 
-  defp cast_map(value, _) when value in [nil, ""], do: error(:map, value)
   defp cast_map(value, opts) do
-    case opts[:values] |> Enum.find(fn({field, _}) -> field == value end) do
+    default_value = try_default(value, opts)
+    case opts[:values] |> Enum.find(fn({field, _}) -> field == default_value end) do
       {_, v} -> {:ok , v}
       nil -> error(:map, value)
     end
   end
 
-  defp cast_list(value, _) when value in [nil, ""], do: error(:list, value)
+  #defp cast_list(value, _) when value in [nil, ""], do: error(:list, value)
   defp  cast_list(value, opts) do
+    default_value = try_default(value, opts)
     opts[:values]
-    |> Enum.find_value(&(&1 == value))
+    |> Enum.find_value(&(&1 == default_value))
     |> case do
-      true -> {:ok, value}
+      true -> {:ok, default_value}
       _ -> error(:list, value)
     end
   end

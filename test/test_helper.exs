@@ -24,12 +24,12 @@ defmodule User do
     column :first_name, :string
     column :second_name, :string, as: :last_name
     column :birth, :string
-    column :role, :map, values: [{"manager", 0}, {"user", 1}]
+    column :role, :map, values: [{"manager", 0}, {"user", 1}], default: "user"
     column :gender, :list, values: ["male", "female"]
     column :username, :string
     column :company_id, :integer
     column :contract, :string
-    column :money, :integer, as: :salary
+    column :money, :integer, as: :salary, default: 0
     column :headquarters, :string
   end
 end
