@@ -45,17 +45,19 @@ defmodule Importex.CSV.Cast do
   end
 
   defp cast_integer(value, opts) do
-    default_value = try_default(value, opts)
+    case try_default(value, opts) do
+      nil -> error(:integer, value)
+      default_value ->
+        default_value = case is_integer(default_value) do
+          true -> Integer.to_string(default_value)
+          false -> default_value
+        end
 
-    default_value = case is_integer(default_value) do
-      true -> Integer.to_string(default_value)
-      false -> default_value
-    end
-
-    if Regex.match?(~r/^(\d+)$/, default_value) do
-      {:ok, String.to_integer(default_value)}
-    else
-      error(:integer, value)
+        if Regex.match?(~r/^(\d+)$/, default_value) do
+          {:ok, String.to_integer(default_value)}
+        else
+          error(:integer, value)
+        end
     end
   end
 
