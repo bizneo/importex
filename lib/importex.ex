@@ -75,7 +75,7 @@ defmodule Importex do
           [{:id, integer}, {:username, :string}, {:email, :string}]
 
       """
-      def columns, do: @columns
+      def columns, do: @columns |> Enum.reverse
 
       @doc """
       Start a import process from csv file.
