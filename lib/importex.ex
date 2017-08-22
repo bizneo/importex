@@ -71,13 +71,11 @@ defmodule Importex do
 
       ## Examples
 
-          iex> User.show_columns()
+          iex> User.columns()
           [{:id, integer}, {:username, :string}, {:email, :string}]
 
       """
-      def show_columns do
-        IO.puts "The columns of #{__MODULE__} are (#{inspect @columns})"
-      end
+      def columns, do: @columns
 
       @doc """
       Start a import process from csv file.
