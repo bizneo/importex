@@ -51,13 +51,13 @@ defmodule Importex.CSV.Parser do
     opts = Utils.get_or_set_opts(opts, columns)
     # If the file_include_headers is set we have to read the first file row, or
     # keep the columns set in import_fields otherwise.
-    columns = file |> Utils.get_columns(opts)
+    columns = Utils.get_columns(file, opts)
 
     file
     |> Utils.read_rows(opts)
     |> Enum.map(fn(row) ->
       if cast_rows == true do
-        row |> Cast.row(columns)
+         Cast.row(row, columns)
       else
         row
       end

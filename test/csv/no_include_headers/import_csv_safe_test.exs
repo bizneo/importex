@@ -57,7 +57,7 @@ defmodule Test.Csv.NoIncludeHeaders.ImportCsvSafeTest do
     data = filename_data_incomplete
     |> User.import_csv_safe
 
-    # User2 has not salary and it's set to defaul:0
+    # User2 has not salary and it's set to default:0
     # User3 has not and it's set to user (0)
 
     user1 = data |> Enum.at(0)
