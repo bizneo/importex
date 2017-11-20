@@ -13,7 +13,7 @@ defmodule Importex.CSV.Cast do
       end
 
       case row[field] do
-        nil -> accum
+        value when value in [nil, ""] -> accum
         value -> accum |> try_cast(field, type, value, opts)
       end
     end)
