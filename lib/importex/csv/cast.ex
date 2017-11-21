@@ -5,16 +5,17 @@ defmodule Importex.CSV.Cast do
 
   # Cast row based on columnn types and report error if any.
   def row(row, columns) do
-    columns
-    |> Enum.reduce(%{}, fn({field, type, opts}, accum) ->
-      field = case row[field] do
-        nil -> opts[:as]
-        _ -> field
-      end
+
+    Enum.reduce(columns, %{}, fn({field, type, opts}, accum) ->
+      field =
+        case row[field] do
+          nil -> opts[:as]
+          _ -> field
+        end
 
       case row[field] do
         nil -> accum
-        value -> accum |> try_cast(field, type, value, opts)
+        value -> try_cast(accum, field, type, value, opts)
       end
     end)
   end
@@ -24,11 +25,10 @@ defmodule Importex.CSV.Cast do
 
   defp try_cast(accum, field, type, value, opts) do
     case cast(type, value, opts) do
-      {:error, error} ->
-        accum
-        |> Map.update(:errors, [{field, error}], &(&1 ++ [{field, error}]))
-      {:ok, cast_value} ->
-        accum |> Map.put(field, cast_value)
+      {:error, e} -> Map.update(accum, :errors, [{field, e}], &(&1 ++ [{field, e}]))
+      {:empty} -> accum
+      {:ok, casted_value} when casted_value in [nil, ""] -> accum
+      {:ok, casted_value} -> Map.put(accum, field, casted_value)
     end
   end
 
@@ -46,12 +46,13 @@ defmodule Importex.CSV.Cast do
 
   defp cast_integer(value, opts) do
     case try_default(value, opts) do
-      nil -> error(:integer, value)
+      value when value in [nil, ""] -> {:empty}
       default_value ->
-        default_value = case is_integer(default_value) do
-          true -> Integer.to_string(default_value)
-          false -> default_value
-        end
+        default_value =
+          case is_integer(default_value) do
+            true -> Integer.to_string(default_value)
+            false -> default_value
+          end
 
         if Regex.match?(~r/^(\d+)$/, default_value) do
           {:ok, String.to_integer(default_value)}
@@ -61,7 +62,7 @@ defmodule Importex.CSV.Cast do
     end
   end
 
-  defp cast_email(value) when value in [nil, ""], do: error(:email, value)
+  defp cast_email(value) when value in [nil, ""], do: {:empty}
   defp cast_email(value) do
     regex = ~r/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/
     if Regex.match?(regex, value) do
@@ -73,7 +74,7 @@ defmodule Importex.CSV.Cast do
 
   defp cast_map(value, opts) do
     default_value = try_default(value, opts)
-    case opts[:values] |> Enum.find(fn({field, _}) -> field == default_value end) do
+    case Enum.find(opts[:values], fn({field, _}) -> field == default_value end) do
       {_, v} -> {:ok , v}
       nil -> error(:map, value)
     end
@@ -82,8 +83,7 @@ defmodule Importex.CSV.Cast do
   #defp cast_list(value, _) when value in [nil, ""], do: error(:list, value)
   defp  cast_list(value, opts) do
     default_value = try_default(value, opts)
-    opts[:values]
-    |> Enum.find_value(&(&1 == default_value))
+    Enum.find_value(opts[:values], &(&1 == default_value))
     |> case do
       true -> {:ok, default_value}
       _ -> error(:list, value)
@@ -91,11 +91,12 @@ defmodule Importex.CSV.Cast do
   end
 
   defp error(type, value) do
-    error = case type do
-      :list ->  "'#{value}' is not in the list"
-      :map  ->  "'#{value}' is not in the map"
-      _ ->      "'#{value}' is not a valid #{type}"
-    end
+    error =
+      case type do
+        :list ->  "'#{value}' is not in the list"
+        :map  ->  "'#{value}' is not in the map"
+        _ ->      "'#{value}' is not a valid #{type}"
+      end
     {:error, error}
   end
 
