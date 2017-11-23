@@ -26,8 +26,6 @@ defmodule Importex.CSV.Cast do
   defp try_cast(accum, field, type, value, opts) do
     case cast(type, value, opts) do
       {:error, e} -> Map.update(accum, :errors, [{field, e}], &(&1 ++ [{field, e}]))
-      {:empty} -> accum
-      {:ok, casted_value} when casted_value in [nil, ""] -> accum
       {:ok, casted_value} -> Map.put(accum, field, casted_value)
     end
   end
@@ -46,7 +44,7 @@ defmodule Importex.CSV.Cast do
 
   defp cast_integer(value, opts) do
     case try_default(value, opts) do
-      value when value in [nil, ""] -> {:empty}
+      value when value in [nil, ""] -> {:ok, ""}
       default_value ->
         default_value =
           case is_integer(default_value) do
@@ -62,7 +60,7 @@ defmodule Importex.CSV.Cast do
     end
   end
 
-  defp cast_email(value) when value in [nil, ""], do: {:empty}
+  defp cast_email(value) when value in [nil, ""], do: {:ok, ""}
   defp cast_email(value) do
     regex = ~r/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/
     if Regex.match?(regex, value) do
